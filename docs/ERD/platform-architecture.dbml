@@ -1,0 +1,1168 @@
+// Mock Exams target architecture ERD.
+// This DBML describes the intended platform schema and does not match the current V1 migration yet.
+// Backend implementation plans should refine this into ordered Flyway migrations.
+
+Project mock_exams {
+  database_type: "PostgreSQL"
+  Note: '''
+    AI-powered IELTS testing, teacher marketplace, personalized improvement, and admin moderation platform.
+    Current code has an early mock_exam table; this ERD describes the target architecture.
+    Flyway verification should use this ERD for table and relationship anchors without duplicating full table DDL.
+  '''
+}
+
+Enum user_status {
+  active
+  suspended
+  banned
+  deleted
+}
+
+Enum teacher_status {
+  draft
+  pending_approval
+  approved
+  rejected
+  suspended
+}
+
+Enum test_type {
+  listening
+  reading
+  writing_task_1
+  writing_task_2
+  speaking_part_1
+  speaking_part_2
+  speaking_part_3
+  full_mock
+}
+
+Enum test_visibility {
+  draft
+  submitted
+  published
+  rejected
+  archived
+}
+
+Enum question_type {
+  multiple_choice
+  true_false_not_given
+  yes_no_not_given
+  matching_headings
+  matching_information
+  sentence_completion
+  summary_completion
+  table_completion
+  diagram_labeling
+  short_answer
+  gap_fill
+  ordering
+  essay_answer
+  audio_answer
+}
+
+Enum attempt_status {
+  in_progress
+  submitted
+  expired
+  cancelled
+}
+
+Enum payment_status {
+  pending
+  paid
+  failed
+  cancelled
+  refunded
+}
+
+Enum speaking_session_slot_status {
+  draft
+  announced
+  reserved
+  booked
+  completed
+  cancelled
+}
+
+Enum speaking_session_booking_status {
+  reserved
+  booked
+  cancelled
+  expired
+  completed
+  no_show
+}
+
+Enum google_calendar_sync_status {
+  pending
+  completed
+  failed
+}
+
+Enum purchase_status {
+  granted
+  revoked
+  refunded
+}
+
+Enum purchase_source {
+  free_listing
+  payment
+  manual_admin
+  subscription
+  legacy
+}
+
+Enum listing_type {
+  single_test
+  test_pack
+  writing_course
+  speaking_question_pack
+  vocabulary_pack
+  full_mock_exam
+  subscription_plan
+}
+
+Enum wallet_transaction_type {
+  earning
+  commission
+  withdrawal
+  refund
+  adjustment
+}
+
+Enum withdrawal_status {
+  requested
+  approved
+  rejected
+  paid
+  cancelled
+}
+
+Enum ai_feedback_type {
+  writing
+  speaking
+  study_plan
+}
+
+Enum ai_job_status {
+  queued
+  processing
+  completed
+  failed
+}
+
+Enum notification_type {
+  system
+  test_moderation
+  payment
+  withdrawal
+  ai_feedback
+  account_status
+}
+
+Enum complaint_status {
+  open
+  under_review
+  resolved
+  rejected
+}
+
+Enum dispute_status {
+  open
+  under_review
+  refunded
+  rejected
+  resolved
+}
+
+Enum banner_status {
+  draft
+  scheduled
+  active
+  paused
+  expired
+}
+
+Enum subscription_status {
+  active
+  cancelled
+  expired
+  past_due
+}
+
+Enum school_member_role {
+  owner
+  teacher
+  student
+  manager
+}
+
+Enum file_purpose {
+  listening_audio
+  speaking_audio
+  teacher_avatar
+  passage_image
+  diagram
+  document
+  course_material
+  banner_image
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  full_name varchar(160) [not null]
+  phone varchar(40)
+  status user_status [not null, default: 'active']
+  preferred_language varchar(20) [not null, default: 'en']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+}
+
+Table roles {
+  id smallint [pk, increment]
+  code varchar(40) [not null, unique]
+  name varchar(80) [not null]
+}
+
+Table user_roles {
+  user_id bigint [not null]
+  role_id smallint [not null]
+  assigned_at timestamptz [not null]
+
+  indexes {
+    (user_id, role_id) [pk]
+  }
+}
+
+Table teacher_profiles {
+  id bigint [pk, increment]
+  user_id bigint [not null, unique]
+  display_name varchar(160) [not null]
+  headline varchar(180)
+  bio text
+  avatar_file_id bigint
+  status teacher_status [not null, default: 'draft']
+  approved_by_user_id bigint
+  approved_at timestamptz
+  rejection_reason text
+  rating_average numeric(3,2) [not null, default: 0]
+  rating_count integer [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table files {
+  id bigint [pk, increment]
+  owner_user_id bigint
+  purpose file_purpose [not null]
+  bucket varchar(120) [not null]
+  object_key varchar(500) [not null, unique]
+  original_name varchar(255) [not null]
+  content_type varchar(120) [not null]
+  size_bytes bigint [not null]
+  duration_seconds integer
+  checksum varchar(128)
+  created_at timestamptz [not null]
+}
+
+Table tests {
+  id bigint [pk, increment]
+  teacher_profile_id bigint
+  title varchar(180) [not null]
+  description text
+  type test_type [not null]
+  difficulty varchar(40)
+  estimated_band_min numeric(2,1)
+  estimated_band_max numeric(2,1)
+  duration_minutes integer [not null]
+  price_amount numeric(14,2) [not null, default: 0]
+  currency varchar(3) [not null, default: 'UZS']
+  is_free boolean [not null, default: true]
+  language varchar(20) [not null, default: 'en']
+  visibility test_visibility [not null, default: 'draft']
+  moderation_note text
+  published_at timestamptz
+  created_by_user_id bigint [not null]
+  reviewed_by_user_id bigint
+  reviewed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+}
+
+Table test_tags {
+  id bigint [pk, increment]
+  name varchar(80) [not null, unique]
+  slug varchar(100) [not null, unique]
+}
+
+Table test_categories {
+  id bigint [pk, increment]
+  parent_id bigint
+  name varchar(100) [not null]
+  slug varchar(120) [not null, unique]
+  sort_order integer [not null, default: 0]
+  is_active boolean [not null, default: true]
+}
+
+Table test_category_links {
+  test_id bigint [not null]
+  category_id bigint [not null]
+
+  indexes {
+    (test_id, category_id) [pk]
+  }
+}
+
+Table test_tag_links {
+  test_id bigint [not null]
+  tag_id bigint [not null]
+
+  indexes {
+    (test_id, tag_id) [pk]
+  }
+}
+
+Table test_sections {
+  id bigint [pk, increment]
+  test_id bigint [not null]
+  title varchar(180) [not null]
+  instructions text
+  instructions_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  instructions_text text [note: 'Plain-text fallback generated by backend sanitizer.']
+  instructions_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  passage_text text
+  passage_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  passage_text_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  audio_file_id bigint
+  section_order integer [not null]
+  duration_minutes integer
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (test_id, section_order) [unique]
+  }
+}
+
+Table reading_paragraphs {
+  id bigint [pk, increment]
+  section_id bigint [not null]
+  label varchar(20)
+  content text [not null]
+  content_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  content_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  paragraph_order integer [not null]
+
+  indexes {
+    (section_id, label) [unique, note: 'Applies to non-null labels; multiple unlabeled paragraphs are allowed.']
+    (section_id, paragraph_order) [unique]
+  }
+}
+
+Table listening_segments {
+  id bigint [pk, increment]
+  section_id bigint [not null]
+  title varchar(160)
+  start_seconds integer [not null]
+  end_seconds integer [not null]
+  transcript text
+  segment_order integer [not null]
+
+  indexes {
+    (section_id, segment_order) [unique]
+  }
+}
+
+Table questions {
+  id bigint [pk, increment]
+  section_id bigint [not null]
+  question_type question_type [not null]
+  question_text text [not null]
+  question_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  question_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  instructions text
+  instructions_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  instructions_text text [note: 'Plain-text fallback generated by backend sanitizer.']
+  instructions_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  score numeric(6,2) [not null, default: 1]
+  question_order integer [not null]
+  related_paragraph_label varchar(20)
+  listening_segment_id bigint
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (section_id, question_order) [unique]
+  }
+}
+
+Table question_options {
+  id bigint [pk, increment]
+  question_id bigint [not null]
+  option_label varchar(20) [not null]
+  option_text text [not null]
+  option_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  option_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+  option_order integer [not null]
+
+  indexes {
+    (id, question_id) [unique]
+    (question_id, option_label) [unique]
+    (question_id, option_order) [unique]
+  }
+}
+
+Table question_answers {
+  id bigint [pk, increment]
+  question_id bigint [not null]
+  answer_value text [not null]
+  normalized_value text
+  is_primary boolean [not null, default: true]
+  answer_order integer [not null, default: 1]
+  explanation text
+  explanation_document text [note: 'Versioned rich-text JSON document stored as text for H2/PostgreSQL portability.']
+  explanation_rendered_html text [note: 'Server-rendered sanitized HTML projection.']
+}
+
+Table test_attempts {
+  id bigint [pk, increment]
+  test_id bigint [not null]
+  student_user_id bigint [not null]
+  status attempt_status [not null, default: 'in_progress']
+  started_at timestamptz [not null]
+  submitted_at timestamptz
+  expires_at timestamptz
+  time_spent_seconds integer [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table student_answers {
+  id bigint [pk, increment]
+  attempt_id bigint [not null]
+  question_id bigint [not null]
+  answer_text text
+  selected_option_id bigint
+  audio_file_id bigint
+  is_correct boolean
+  score_awarded numeric(6,2)
+  answered_at timestamptz
+
+  indexes {
+    (attempt_id, question_id) [unique]
+  }
+}
+
+Table test_results {
+  id bigint [pk, increment]
+  attempt_id bigint [not null, unique]
+  raw_score numeric(8,2) [not null]
+  max_score numeric(8,2) [not null]
+  estimated_band numeric(2,1)
+  correct_count integer [not null, default: 0]
+  incorrect_count integer [not null, default: 0]
+  weak_question_types jsonb
+  summary jsonb
+  created_at timestamptz [not null]
+}
+
+Table band_conversions {
+  id bigint [pk, increment]
+  test_type test_type [not null]
+  min_raw_score numeric(8,2) [not null]
+  max_raw_score numeric(8,2) [not null]
+  estimated_band numeric(2,1) [not null]
+  created_at timestamptz [not null]
+
+  indexes {
+    (test_type, min_raw_score, max_raw_score) [unique]
+  }
+}
+
+Table writing_submissions {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  test_attempt_id bigint
+  task_type test_type [not null]
+  prompt text [not null]
+  answer_text text [not null]
+  word_count integer
+  created_at timestamptz [not null]
+}
+
+Table speaking_submissions {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  test_attempt_id bigint
+  part_type test_type [not null]
+  prompt text [not null]
+  audio_file_id bigint [not null]
+  transcript text
+  duration_seconds integer
+  transcription_status ai_job_status [not null, default: 'queued']
+  transcription_provider varchar(80)
+  transcription_model varchar(120)
+  transcription_failure_code varchar(64)
+  transcription_error_message text
+  transcription_estimated_cost numeric(12,6) [not null, default: 0]
+  transcription_started_at timestamptz
+  transcription_completed_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table ai_feedbacks {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  feedback_type ai_feedback_type [not null]
+  writing_submission_id bigint
+  speaking_submission_id bigint
+  status ai_job_status [not null, default: 'queued']
+  provider varchar(80)
+  model varchar(120)
+  prompt_tokens integer [not null, default: 0]
+  completion_tokens integer [not null, default: 0]
+  estimated_cost numeric(12,6) [not null, default: 0]
+  overall_band numeric(2,1)
+  criteria_scores jsonb
+  mistakes jsonb
+  improved_answer text
+  action_plan jsonb
+  failure_code varchar(64)
+  error_message text
+  rubric_version varchar(80)
+  prompt_audit jsonb
+  validation_errors jsonb
+  retry_of_feedback_id bigint
+  retry_count integer [not null, default: 0]
+  created_at timestamptz [not null]
+  completed_at timestamptz
+}
+
+Table ai_usage_limits {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  period_start date [not null]
+  period_end date [not null]
+  free_requests_limit integer [not null]
+  used_requests integer [not null, default: 0]
+  hard_limit_requests integer
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (user_id, period_start, period_end) [unique]
+  }
+}
+
+Table study_plans {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  target_band numeric(2,1) [not null]
+  current_band numeric(2,1)
+  duration_days integer [not null]
+  weakest_skills jsonb
+  plan_summary jsonb [not null]
+  starts_at date [not null]
+  ends_at date [not null]
+  created_by_feedback_id bigint
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table study_plan_tasks {
+  id bigint [pk, increment]
+  study_plan_id bigint [not null]
+  task_date date [not null]
+  skill varchar(32) [not null]
+  title varchar(180) [not null]
+  description text
+  estimated_minutes integer [not null]
+  recommended_resource_type varchar(32)
+  recommended_resource_title varchar(180)
+  recommended_test_id bigint
+  recommended_listing_id bigint
+  rationale text
+  completed_at timestamptz
+  task_order integer [not null]
+
+  indexes {
+    (study_plan_id, task_date, task_order) [unique]
+  }
+}
+
+Table marketplace_listings {
+  id bigint [pk, increment]
+  teacher_profile_id bigint
+  test_id bigint
+  title varchar(180) [not null]
+  description text
+  listing_type listing_type [not null]
+  price_amount numeric(14,2) [not null]
+  currency varchar(3) [not null, default: 'UZS']
+  is_active boolean [not null, default: false]
+  language varchar(20) [not null, default: 'en']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table marketplace_listing_items {
+  id bigint [pk, increment]
+  listing_id bigint [not null]
+  test_id bigint
+  file_id bigint
+  title varchar(180)
+  description text
+  item_order integer [not null]
+
+  indexes {
+    (listing_id, item_order) [unique]
+  }
+}
+
+Table purchases {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  listing_id bigint [not null]
+  payment_id bigint
+  status purchase_status [not null, default: 'granted']
+  source_type purchase_source [not null, default: 'legacy']
+  source_reference varchar(160)
+  source_metadata jsonb
+  amount numeric(14,2) [not null, default: 0]
+  currency varchar(3) [not null, default: 'UZS']
+  purchased_at timestamptz [not null]
+  access_expires_at timestamptz
+  updated_at timestamptz [not null]
+
+  indexes {
+    (student_user_id, listing_id) [unique]
+    (student_user_id, listing_id, status, access_expires_at) [name: 'idx_purchases_student_listing_status_expiry']
+    (student_user_id, status, purchased_at) [name: 'idx_purchases_student_status_purchased']
+  }
+}
+
+Table subscriptions {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  listing_id bigint [not null]
+  payment_id bigint
+  status subscription_status [not null, default: 'active']
+  starts_at timestamptz [not null]
+  ends_at timestamptz [not null]
+  cancelled_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (student_user_id, listing_id, status, starts_at, ends_at) [name: 'idx_subscriptions_student_listing_status_window']
+  }
+}
+
+Table teacher_availability_blocks {
+  id bigint [pk, increment]
+  teacher_profile_id bigint [not null]
+  weekday integer [not null]
+  starts_at varchar(16) [not null, note: 'Time of day, persisted as SQL TIME.']
+  ends_at varchar(16) [not null, note: 'Time of day, persisted as SQL TIME.']
+  timezone varchar(80) [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table speaking_session_slots {
+  id bigint [pk, increment]
+  teacher_profile_id bigint [not null]
+  starts_at timestamptz [not null]
+  ends_at timestamptz [not null]
+  timezone varchar(80) [not null]
+  price_amount numeric(14,2) [not null]
+  currency varchar(3) [not null]
+  capacity integer [not null, default: 1]
+  status speaking_session_slot_status [not null]
+  announced_at timestamptz
+  reserved_until timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (teacher_profile_id, status, starts_at) [name: 'idx_speaking_session_slots_teacher_status_start']
+    (status, starts_at) [name: 'idx_speaking_session_slots_public_status_start']
+  }
+}
+
+Table speaking_session_bookings {
+  id bigint [pk, increment]
+  slot_id bigint [not null]
+  student_user_id bigint [not null]
+  teacher_profile_id bigint [not null]
+  payment_id bigint
+  status speaking_session_booking_status [not null]
+  price_amount numeric(14,2) [not null]
+  currency varchar(3) [not null]
+  hold_expires_at timestamptz
+  booked_at timestamptz
+  cancelled_at timestamptz
+  completed_at timestamptz
+  no_show_at timestamptz
+  meet_url varchar(500)
+  calendar_event_id varchar(160)
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (student_user_id, status, created_at) [name: 'idx_speaking_session_bookings_student_status_created']
+    (teacher_profile_id, status, created_at) [name: 'idx_speaking_session_bookings_teacher_status_start']
+    (slot_id, status) [name: 'idx_speaking_session_bookings_slot_status']
+    (payment_id) [name: 'idx_speaking_session_bookings_payment']
+  }
+}
+
+Table google_calendar_connections {
+  id bigint [pk, increment]
+  teacher_profile_id bigint [not null, unique]
+  provider varchar(40) [not null]
+  external_account_id varchar(160)
+  calendar_id varchar(160)
+  status varchar(24) [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table google_calendar_sync_jobs {
+  id bigint [pk, increment]
+  booking_id bigint [not null]
+  teacher_profile_id bigint [not null]
+  provider varchar(40) [not null]
+  operation varchar(40) [not null]
+  status google_calendar_sync_status [not null]
+  provider_event_id varchar(160)
+  meet_url varchar(500)
+  failure_code varchar(80)
+  failure_message varchar(500)
+  attempts integer [not null, default: 0]
+  scheduled_at timestamptz [not null]
+  completed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (status, created_at) [name: 'idx_google_calendar_sync_jobs_status_created']
+    (booking_id, created_at) [name: 'idx_google_calendar_sync_jobs_booking']
+  }
+}
+
+Table payments {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  provider varchar(80) [not null]
+  provider_payment_id varchar(160)
+  provider_checkout_url varchar(500)
+  provider_event_id varchar(160)
+  status payment_status [not null, default: 'pending']
+  amount numeric(14,2) [not null]
+  currency varchar(3) [not null, default: 'UZS']
+  target_type varchar(40) [not null, default: 'legacy']
+  target_listing_id bigint
+  target_subscription_id bigint
+  target_live_speaking_booking_id bigint
+  promo_code_id bigint
+  promo_code varchar(60)
+  promo_discount_amount numeric(14,2)
+  provider_amount numeric(14,2)
+  provider_currency varchar(3)
+  failure_code varchar(80)
+  failure_message varchar(500)
+  metadata jsonb
+  created_at timestamptz [not null]
+  paid_at timestamptz
+  confirmation_dispatched_at timestamptz
+  updated_at timestamptz [not null]
+
+  indexes {
+    (provider, provider_payment_id) [unique]
+    (student_user_id, status, created_at) [name: 'idx_payments_student_status_created']
+    (status, created_at) [name: 'idx_payments_status_created_at']
+    (target_listing_id, status, created_at) [name: 'idx_payments_target_listing_status']
+    (target_subscription_id, status, created_at) [name: 'idx_payments_target_subscription_status']
+    (status, confirmation_dispatched_at) [name: 'idx_payments_confirmation_dispatch']
+    (promo_code_id) [name: 'idx_payments_promo_code']
+  }
+}
+
+Table payment_disputes {
+  id bigint [pk, increment]
+  payment_id bigint [not null]
+  opened_by_user_id bigint [not null]
+  status dispute_status [not null, default: 'open']
+  reason varchar(160) [not null]
+  description text
+  resolution_note text
+  reviewed_by_user_id bigint
+  reviewed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table teacher_wallets {
+  id bigint [pk, increment]
+  teacher_profile_id bigint [not null, unique]
+  balance_amount numeric(14,2) [not null, default: 0]
+  pending_amount numeric(14,2) [not null, default: 0]
+  currency varchar(3) [not null, default: 'UZS']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table teacher_transactions {
+  id bigint [pk, increment]
+  wallet_id bigint [not null]
+  purchase_id bigint
+  payment_id bigint
+  withdrawal_request_id bigint
+  transaction_type wallet_transaction_type [not null]
+  source_type varchar(40)
+  source_reference varchar(160)
+  gross_amount numeric(14,2) [not null]
+  platform_commission_amount numeric(14,2) [not null, default: 0]
+  net_amount numeric(14,2) [not null]
+  currency varchar(3) [not null, default: 'UZS']
+  description varchar(255)
+  created_at timestamptz [not null]
+
+  indexes {
+    (purchase_id, transaction_type) [unique, name: 'uq_teacher_transactions_purchase_type']
+    (source_type, source_reference, transaction_type) [unique, name: 'uq_teacher_transactions_source_type_reference_type']
+    (payment_id) [name: 'idx_teacher_transactions_payment']
+    (source_type, source_reference) [name: 'idx_teacher_transactions_source']
+  }
+}
+
+Table withdrawal_requests {
+  id bigint [pk, increment]
+  teacher_profile_id bigint [not null]
+  requested_amount numeric(14,2) [not null]
+  currency varchar(3) [not null, default: 'UZS']
+  status withdrawal_status [not null, default: 'requested']
+  payout_details jsonb [not null]
+  reviewed_by_user_id bigint
+  reviewed_at timestamptz
+  rejection_reason text
+  paid_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table promo_codes {
+  id bigint [pk, increment]
+  teacher_profile_id bigint
+  code varchar(60) [not null, unique]
+  code_normalized varchar(60) [not null, unique]
+  discount_percent numeric(5,2)
+  discount_amount numeric(14,2)
+  currency varchar(3) [default: 'UZS']
+  starts_at timestamptz
+  expires_at timestamptz
+  usage_limit integer
+  used_count integer [not null, default: 0]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table promo_code_redemptions {
+  id bigint [pk, increment]
+  promo_code_id bigint [not null]
+  student_user_id bigint [not null]
+  purchase_id bigint
+  payment_id bigint
+  discount_amount numeric(14,2) [not null]
+  currency varchar(3) [not null, default: 'UZS']
+  redeemed_at timestamptz [not null]
+
+  indexes {
+    (promo_code_id, student_user_id, purchase_id) [unique]
+    (promo_code_id, payment_id) [unique, name: 'uq_promo_redemptions_code_payment']
+    (promo_code_id, redeemed_at) [name: 'idx_promo_redemptions_code_redeemed']
+  }
+}
+
+Table reviews {
+  id bigint [pk, increment]
+  student_user_id bigint [not null]
+  teacher_profile_id bigint
+  test_id bigint
+  rating smallint [not null]
+  comment text
+  hidden_at timestamptz
+  hidden_by_user_id bigint
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (student_user_id, test_id) [unique]
+    (student_user_id, teacher_profile_id) [unique]
+    (student_user_id, created_at) [name: 'idx_reviews_student_created']
+    (hidden_at, created_at) [name: 'idx_reviews_hidden_created']
+  }
+}
+
+Table complaints {
+  id bigint [pk, increment]
+  submitted_by_user_id bigint [not null]
+  target_user_id bigint
+  target_teacher_profile_id bigint
+  target_test_id bigint
+  status complaint_status [not null, default: 'open']
+  reason varchar(160) [not null]
+  description text
+  resolution_note text
+  reviewed_by_user_id bigint
+  reviewed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table notifications {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  type notification_type [not null]
+  title varchar(160) [not null]
+  body text [not null]
+  payload jsonb
+  read_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table banners {
+  id bigint [pk, increment]
+  title varchar(160) [not null]
+  image_file_id bigint
+  target_url varchar(500)
+  placement varchar(80) [not null]
+  status banner_status [not null, default: 'draft']
+  starts_at timestamptz
+  ends_at timestamptz
+  created_by_user_id bigint [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table student_streaks {
+  id bigint [pk, increment]
+  student_user_id bigint [not null, unique]
+  current_streak_days integer [not null, default: 0]
+  longest_streak_days integer [not null, default: 0]
+  last_activity_date date
+  updated_at timestamptz [not null]
+}
+
+Table leaderboards {
+  id bigint [pk, increment]
+  period_key varchar(40) [not null]
+  skill varchar(40) [not null]
+  starts_at date [not null]
+  ends_at date [not null]
+  created_at timestamptz [not null]
+
+  indexes {
+    (period_key, skill) [unique]
+  }
+}
+
+Table leaderboard_entries {
+  id bigint [pk, increment]
+  leaderboard_id bigint [not null]
+  student_user_id bigint [not null]
+  rank integer [not null]
+  score numeric(8,2) [not null]
+  attempts_count integer [not null, default: 0]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (leaderboard_id, student_user_id) [unique]
+    (leaderboard_id, rank) [unique]
+  }
+}
+
+Table referral_codes {
+  id bigint [pk, increment]
+  owner_user_id bigint [not null]
+  code varchar(60) [not null, unique]
+  reward_policy jsonb
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+}
+
+Table referral_uses {
+  id bigint [pk, increment]
+  referral_code_id bigint [not null]
+  referred_user_id bigint [not null, unique]
+  reward_granted_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table school_accounts {
+  id bigint [pk, increment]
+  name varchar(180) [not null]
+  owner_user_id bigint [not null]
+  status user_status [not null, default: 'active']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table school_members {
+  school_account_id bigint [not null]
+  user_id bigint [not null]
+  role school_member_role [not null]
+  joined_at timestamptz [not null]
+
+  indexes {
+    (school_account_id, user_id) [pk]
+  }
+}
+
+Table platform_settings {
+  id bigint [pk, increment]
+  setting_key varchar(120) [not null, unique]
+  setting_value jsonb [not null]
+  updated_by_user_id bigint
+  updated_at timestamptz [not null]
+}
+
+Table mock_exam {
+  id bigint [pk, increment]
+  title varchar(160) [not null]
+  subject varchar(120) [not null]
+  duration_minutes integer [not null]
+  question_count integer [not null]
+  created_at timestamptz [not null, note: 'Starter compatibility scaffold behind GET /api/v1/exams; not a target product table.']
+}
+
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_id > roles.id
+
+Ref: teacher_profiles.user_id > users.id
+Ref: teacher_profiles.approved_by_user_id > users.id
+Ref: teacher_profiles.avatar_file_id > files.id
+
+Ref: files.owner_user_id > users.id
+
+Ref: tests.teacher_profile_id > teacher_profiles.id
+Ref: tests.created_by_user_id > users.id
+Ref: tests.reviewed_by_user_id > users.id
+
+Ref: test_tag_links.test_id > tests.id
+Ref: test_tag_links.tag_id > test_tags.id
+Ref: test_categories.parent_id > test_categories.id
+Ref: test_category_links.test_id > tests.id
+Ref: test_category_links.category_id > test_categories.id
+
+Ref: test_sections.test_id > tests.id
+Ref: test_sections.audio_file_id > files.id
+
+Ref: reading_paragraphs.section_id > test_sections.id
+Ref: listening_segments.section_id > test_sections.id
+
+Ref: questions.section_id > test_sections.id
+Ref: questions.listening_segment_id > listening_segments.id
+Ref: question_options.question_id > questions.id
+Ref: question_answers.question_id > questions.id
+
+Ref: test_attempts.test_id > tests.id
+Ref: test_attempts.student_user_id > users.id
+Ref: student_answers.attempt_id > test_attempts.id
+Ref: student_answers.question_id > questions.id
+Ref: student_answers.selected_option_id > question_options.id
+Ref: student_answers.audio_file_id > files.id
+Ref: test_results.attempt_id > test_attempts.id
+
+Ref: writing_submissions.student_user_id > users.id
+Ref: writing_submissions.test_attempt_id > test_attempts.id
+Ref: speaking_submissions.student_user_id > users.id
+Ref: speaking_submissions.test_attempt_id > test_attempts.id
+Ref: speaking_submissions.audio_file_id > files.id
+
+Ref: ai_feedbacks.student_user_id > users.id
+Ref: ai_feedbacks.writing_submission_id > writing_submissions.id
+Ref: ai_feedbacks.speaking_submission_id > speaking_submissions.id
+Ref: ai_feedbacks.retry_of_feedback_id > ai_feedbacks.id
+Ref: ai_usage_limits.user_id > users.id
+Ref: study_plans.student_user_id > users.id
+Ref: study_plans.created_by_feedback_id > ai_feedbacks.id
+Ref: study_plan_tasks.study_plan_id > study_plans.id
+Ref: study_plan_tasks.recommended_test_id > tests.id
+Ref: study_plan_tasks.recommended_listing_id > marketplace_listings.id
+
+Ref: marketplace_listings.teacher_profile_id > teacher_profiles.id
+Ref: marketplace_listings.test_id > tests.id
+Ref: marketplace_listing_items.listing_id > marketplace_listings.id
+Ref: marketplace_listing_items.test_id > tests.id
+Ref: marketplace_listing_items.file_id > files.id
+Ref: purchases.student_user_id > users.id
+Ref: purchases.listing_id > marketplace_listings.id
+Ref: purchases.payment_id > payments.id
+Ref: subscriptions.student_user_id > users.id
+Ref: subscriptions.listing_id > marketplace_listings.id
+Ref: subscriptions.payment_id > payments.id
+Ref: payments.student_user_id > users.id
+Ref: payments.target_listing_id > marketplace_listings.id
+Ref: payments.target_subscription_id > subscriptions.id
+Ref: payments.target_live_speaking_booking_id > speaking_session_bookings.id
+Ref: payment_disputes.payment_id > payments.id
+Ref: payment_disputes.opened_by_user_id > users.id
+Ref: payment_disputes.reviewed_by_user_id > users.id
+
+Ref: teacher_wallets.teacher_profile_id > teacher_profiles.id
+Ref: teacher_transactions.wallet_id > teacher_wallets.id
+Ref: teacher_transactions.purchase_id > purchases.id
+Ref: teacher_transactions.payment_id > payments.id
+Ref: teacher_transactions.withdrawal_request_id > withdrawal_requests.id
+Ref: withdrawal_requests.teacher_profile_id > teacher_profiles.id
+Ref: withdrawal_requests.reviewed_by_user_id > users.id
+
+Ref: teacher_availability_blocks.teacher_profile_id > teacher_profiles.id
+Ref: speaking_session_slots.teacher_profile_id > teacher_profiles.id
+Ref: speaking_session_bookings.slot_id > speaking_session_slots.id
+Ref: speaking_session_bookings.student_user_id > users.id
+Ref: speaking_session_bookings.teacher_profile_id > teacher_profiles.id
+Ref: speaking_session_bookings.payment_id > payments.id
+Ref: google_calendar_connections.teacher_profile_id > teacher_profiles.id
+Ref: google_calendar_sync_jobs.booking_id > speaking_session_bookings.id
+Ref: google_calendar_sync_jobs.teacher_profile_id > teacher_profiles.id
+
+Ref: promo_codes.teacher_profile_id > teacher_profiles.id
+Ref: promo_code_redemptions.promo_code_id > promo_codes.id
+Ref: promo_code_redemptions.student_user_id > users.id
+Ref: promo_code_redemptions.purchase_id > purchases.id
+Ref: promo_code_redemptions.payment_id > payments.id
+Ref: payments.promo_code_id > promo_codes.id
+Ref: reviews.student_user_id > users.id
+Ref: reviews.teacher_profile_id > teacher_profiles.id
+Ref: reviews.test_id > tests.id
+Ref: reviews.hidden_by_user_id > users.id
+Ref: complaints.submitted_by_user_id > users.id
+Ref: complaints.target_user_id > users.id
+Ref: complaints.target_teacher_profile_id > teacher_profiles.id
+Ref: complaints.target_test_id > tests.id
+Ref: complaints.reviewed_by_user_id > users.id
+
+Ref: notifications.user_id > users.id
+Ref: banners.image_file_id > files.id
+Ref: banners.created_by_user_id > users.id
+Ref: student_streaks.student_user_id > users.id
+Ref: leaderboard_entries.leaderboard_id > leaderboards.id
+Ref: leaderboard_entries.student_user_id > users.id
+Ref: referral_codes.owner_user_id > users.id
+Ref: referral_uses.referral_code_id > referral_codes.id
+Ref: referral_uses.referred_user_id > users.id
+Ref: school_accounts.owner_user_id > users.id
+Ref: school_members.school_account_id > school_accounts.id
+Ref: school_members.user_id > users.id
+Ref: platform_settings.updated_by_user_id > users.id
