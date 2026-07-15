@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { AdminLayout } from '../components/layout/AdminLayout'
@@ -11,40 +12,54 @@ import {
 } from '../components/routing/RouteGuards'
 import { SessionBootstrap } from '../components/routing/SessionBootstrap'
 import { NotFoundState } from '../components/routing/ShellState'
+import { Loader } from '../components/ui'
 import { ROUTES } from '../constants/routes'
-import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
-import { AdminModerationPage } from '../pages/admin/AdminModerationPage'
-import { AdminPaymentsPage } from '../pages/admin/AdminPaymentsPage'
-import { AdminReportsPage } from '../pages/admin/AdminReportsPage'
-import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage'
-import { AdminTeachersPage } from '../pages/admin/AdminTeachersPage'
-import { AdminUsersPage } from '../pages/admin/AdminUsersPage'
-import { AdminWithdrawalsPage } from '../pages/admin/AdminWithdrawalsPage'
-import { LoginPage, RegisterPage } from '../pages/auth/AuthPages'
-import { PlaceholderPage } from '../pages/PlaceholderPage'
-import { MarketplaceDetailPage } from '../pages/public/MarketplaceDetailPage'
-import { MarketplacePage } from '../pages/public/MarketplacePage'
-import { PricingPage } from '../pages/public/PricingPage'
-import { TestDetailPage } from '../pages/public/TestDetailPage'
-import { TestsPage } from '../pages/public/TestsPage'
-import { DashboardPage } from '../pages/student/DashboardPage'
-import { ProfilePage } from '../pages/student/ProfilePage'
-import { ResultDetailPage } from '../pages/student/ResultDetailPage'
-import { SpeakingPracticePage } from '../pages/student/SpeakingPracticePage'
-import { WritingPracticePage } from '../pages/student/WritingPracticePage'
-import { TeacherDashboardPage } from '../pages/teacher/TeacherDashboardPage'
-import { TeacherEarningsPage } from '../pages/teacher/TeacherEarningsPage'
-import { TeacherSchedulePage } from '../pages/teacher/TeacherSchedulePage'
-import { TeacherStudentsPage } from '../pages/teacher/TeacherStudentsPage'
-import { TeacherTestBuilderPage } from '../pages/teacher/TeacherTestBuilderPage'
-import { TeacherTestsPage } from '../pages/teacher/TeacherTestsPage'
-import { TeacherProfilePage } from '../pages/teacher/TeacherProfilePage'
-import { TeacherNotificationsPage } from '../pages/teacher/TeacherNotificationsPage'
+
+const LoginPage = lazy(() => import('../pages/auth/AuthPages').then((module) => ({ default: module.LoginPage })))
+const RegisterPage = lazy(() => import('../pages/auth/AuthPages').then((module) => ({ default: module.RegisterPage })))
+const MarketplaceDetailPage = lazy(() => import('../pages/public/MarketplaceDetailPage').then((module) => ({ default: module.MarketplaceDetailPage })))
+const MarketplacePage = lazy(() => import('../pages/public/MarketplacePage').then((module) => ({ default: module.MarketplacePage })))
+const PricingPage = lazy(() => import('../pages/public/PricingPage').then((module) => ({ default: module.PricingPage })))
+const PublicTeacherProfilePage = lazy(() => import('../pages/public/TeacherProfilePage').then((module) => ({ default: module.PublicTeacherProfilePage })))
+const TestDetailPage = lazy(() => import('../pages/public/TestDetailPage').then((module) => ({ default: module.TestDetailPage })))
+const TestsPage = lazy(() => import('../pages/public/TestsPage').then((module) => ({ default: module.TestsPage })))
+const DashboardPage = lazy(() => import('../pages/student/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const ProfilePage = lazy(() => import('../pages/student/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const ResultDetailPage = lazy(() => import('../pages/student/ResultDetailPage').then((module) => ({ default: module.ResultDetailPage })))
+const SpeakingPracticePage = lazy(() => import('../pages/student/SpeakingPracticePage').then((module) => ({ default: module.SpeakingPracticePage })))
+const WritingPracticePage = lazy(() => import('../pages/student/WritingPracticePage').then((module) => ({ default: module.WritingPracticePage })))
+const TeacherDashboardPage = lazy(() => import('../pages/teacher/TeacherDashboardPage').then((module) => ({ default: module.TeacherDashboardPage })))
+const TeacherEarningsPage = lazy(() => import('../pages/teacher/TeacherEarningsPage').then((module) => ({ default: module.TeacherEarningsPage })))
+const TeacherNotificationsPage = lazy(() => import('../pages/teacher/TeacherNotificationsPage').then((module) => ({ default: module.TeacherNotificationsPage })))
+const TeacherProfilePage = lazy(() => import('../pages/teacher/TeacherProfilePage').then((module) => ({ default: module.TeacherProfilePage })))
+const TeacherSchedulePage = lazy(() => import('../pages/teacher/TeacherSchedulePage').then((module) => ({ default: module.TeacherSchedulePage })))
+const TeacherStudentsPage = lazy(() => import('../pages/teacher/TeacherStudentsPage').then((module) => ({ default: module.TeacherStudentsPage })))
+const TeacherTestBuilderPage = lazy(() => import('../pages/teacher/TeacherTestBuilderPage').then((module) => ({ default: module.TeacherTestBuilderPage })))
+const TeacherTestsPage = lazy(() => import('../pages/teacher/TeacherTestsPage').then((module) => ({ default: module.TeacherTestsPage })))
+const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
+const AdminModerationPage = lazy(() => import('../pages/admin/AdminModerationPage').then((module) => ({ default: module.AdminModerationPage })))
+const AdminPaymentsPage = lazy(() => import('../pages/admin/AdminPaymentsPage').then((module) => ({ default: module.AdminPaymentsPage })))
+const AdminReportsPage = lazy(() => import('../pages/admin/AdminReportsPage').then((module) => ({ default: module.AdminReportsPage })))
+const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage').then((module) => ({ default: module.AdminSettingsPage })))
+const AdminTeachersPage = lazy(() => import('../pages/admin/AdminTeachersPage').then((module) => ({ default: module.AdminTeachersPage })))
+const AdminUsersPage = lazy(() => import('../pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
+const AdminWithdrawalsPage = lazy(() => import('../pages/admin/AdminWithdrawalsPage').then((module) => ({ default: module.AdminWithdrawalsPage })))
+
+function RouteFallback() {
+  return (
+    <div className="site-shell">
+      <main className="ui-page">
+        <Loader label="Loading page" />
+      </main>
+    </div>
+  )
+}
 
 export function AppRouter() {
   return (
     <BrowserRouter>
       <SessionBootstrap>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
         <Route element={<PublicLayout />}>
           <Route index element={<Navigate replace to={ROUTES.tests} />} />
@@ -54,16 +69,7 @@ export function AppRouter() {
           <Route path="tests/:id" element={<TestDetailPage />} />
           <Route path="marketplace" element={<MarketplacePage />} />
           <Route path="marketplace/:id" element={<MarketplaceDetailPage />} />
-          <Route
-            path="teachers/:id"
-            element={
-              <PlaceholderPage
-                eyebrow="Teacher"
-                title="Teacher profile"
-                summary="Public teacher profile details will mount here."
-              />
-            }
-          />
+          <Route path="teachers/:id" element={<PublicTeacherProfilePage />} />
           <Route path="pricing" element={<PricingPage />} />
         </Route>
 
@@ -180,6 +186,7 @@ export function AppRouter() {
           }
         />
         </Routes>
+        </Suspense>
       </SessionBootstrap>
     </BrowserRouter>
   )

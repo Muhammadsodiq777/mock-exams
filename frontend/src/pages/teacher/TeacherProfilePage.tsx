@@ -18,13 +18,15 @@ export function TeacherProfilePage() {
 
   return (
     <PageContainer size="compact">
-      <Panel className="placeholder-panel">
-        <p className="ui-eyebrow">Teacher profile</p>
-        <h2>Approval status</h2>
+      <Panel
+        title="Approval status"
+        description="Teacher profile status controls access to publishing, schedules, earnings, and students."
+      >
+        <div className="feature-panel-body">
         <p>
           {state?.needsTeacherApproval
             ? 'Your teacher profile must be approved before the dashboard, builder, schedule, earnings, and student pages are available.'
-            : 'Teacher profile actions and moderation notes will appear here.'}
+            : 'Use this status summary to confirm whether your workspace is open or waiting for review.'}
         </p>
         <DescriptionList
           items={[
@@ -34,6 +36,7 @@ export function TeacherProfilePage() {
             },
           ]}
         />
+        </div>
       </Panel>
     </PageContainer>
   )

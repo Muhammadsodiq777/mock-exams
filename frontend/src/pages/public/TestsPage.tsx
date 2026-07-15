@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import heroImage from '../../assets/hero.png'
 import { TestCard } from '../../components/discovery/DiscoveryCards'
 import { TestCatalogFilters } from '../../components/discovery/DiscoveryFilters'
 import {
@@ -24,6 +25,29 @@ export function TestsPage() {
 
   return (
     <PageContainer size="wide">
+      <section className="exam-hero" aria-labelledby="exam-hero-title">
+        <div className="exam-hero__copy">
+          <p className="ui-eyebrow">IELTS mock exam platform</p>
+          <h1 id="exam-hero-title">Practice under exam conditions</h1>
+          <p>
+            Browse timed Reading and Listening tests, teacher-created packs, and AI practice flows
+            in one focused workspace.
+          </p>
+          <div className="exam-hero__stats" aria-label="Platform highlights">
+            <span>Timed players</span>
+            <span>Band-focused filters</span>
+            <span>Teacher marketplace</span>
+          </div>
+        </div>
+        <div className="exam-hero__visual" aria-hidden="true">
+          <img src={heroImage} alt="" />
+          <div>
+            <strong>60:00</strong>
+            <span>Reading mock ready</span>
+          </div>
+        </div>
+      </section>
+
       <PageHeader
         eyebrow="Mock Exams"
         title="IELTS practice tests"

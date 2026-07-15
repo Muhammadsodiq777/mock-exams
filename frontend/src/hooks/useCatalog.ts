@@ -33,3 +33,10 @@ export function useTestTags() {
   })
 }
 
+export function usePublicTeacherProfile(profileId?: BackendId) {
+  return useQuery({
+    enabled: Boolean(profileId),
+    queryKey: profileId ? catalogKeys.teacherProfile(profileId) : catalogKeys.teacherProfile(0),
+    queryFn: () => backendService.catalog.getTeacherProfile(profileId as BackendId),
+  })
+}
